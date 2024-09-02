@@ -15,4 +15,4 @@ module load miniconda3/24.3.0
 
 ## run ipyrad
 conda activate ipyrad
-ipyrad -p params-ameiva_denovo.txt -s 1234567 -c 24
+ipyrad -p params-ameiva_denovo_c92.txt -s 1234567 -c 24

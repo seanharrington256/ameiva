@@ -1,9 +1,9 @@
 ------- ipyrad params file (v.0.9.99)-------------------------------------------
-ameiva_denovo                  ## [0] [assembly_name]: Assembly name. Used to name output directories for assembly steps
+ameiva_denovo_c92                  ## [0] [assembly_name]: Assembly name. Used to name output directories for assembly steps
 /project/inbreh/ameiva/ipyrad_out ## [1] [project_dir]: Project dir (made in curdir if not present)
                                ## [2] [raw_fastq_path]: Location of raw non-demultiplexed fastq files
                                ## [3] [barcodes_path]: Location of barcodes file
-/project/inbreh/ameiva/fastq                               ## [4] [sorted_fastq_path]: Location of demultiplexed/sorted fastq files
+/project/inbreh/ameiva/fastq/*fq.gz                               ## [4] [sorted_fastq_path]: Location of demultiplexed/sorted fastq files
 denovo                         ## [5] [assembly_method]: Assembly method (denovo, reference)
                                ## [6] [reference_sequence]: Location of reference sequence file
 ddrad                            ## [7] [datatype]: Datatype (see docs): rad, gbs, ddrad, etc.
