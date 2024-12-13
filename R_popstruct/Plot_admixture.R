@@ -1,4 +1,4 @@
-#### Script to do population assignment on RADseq data for Carribean Ameiva
+#### Script to plot output from Admixture for Carribean Ameiva
 
 
 # On MedicineBow, need to load gdal module - required for mapping packages
@@ -7,37 +7,34 @@
 
 
 ### load up relevant packages
-library(adegenet)
-library(LEA)
 library(plotrix)
 library(mapdata)
 library(rworldmap)
 library(ggplot2)
 library(scatterpie)
 library(dplyr)
+library(vcfR)
+library(stringr)
+
 
 ## Set up an object to contain the path to the main directory with the data and then set that as the working directory
-main_dir<-"/project/inbreh/ameiva/ipyrad_out/"
+main_dir<-"/project/inbreh/ameiva/admix_out/"
 setwd(main_dir)
 
- # path to coordinates file
+# path to coordinates file
 coords_file <- "/project/inbreh/ameiva/metadata/coords_spec_info.csv"
 
-## Set up an output directory
-sNMF_out_dir<-"/project/inbreh/ameiva/popstr_out"  # specify a full path to the directory
-if(!dir.exists(sNMF_out_dir)){ # check if the directory  exists and then only create it if it does not
-  dir.create(sNMF_out_dir)
-}
-
+# path to ipyrad output to read in genetic data for individual names
+ipyrad_out_dir <- "/project/inbreh/ameiva/ipyrad_out/"
 
 ## Specify all of the assemblies that we want to run sNMF on - 
 ##    looped from older versions of this script for other assemblies that 
 ##    used multiple assemblies
 all_assemblies<-c(
-  # "ameiva_dn_c92_nolowcov"
   "ameiva_dn_c92_no_outgroup",
   "ameiva_dn_c92_exsul"
 )
+
 
 
 #### Some overall setup for mapping and plotting
@@ -66,87 +63,62 @@ coords <- read.csv(coords_file, header=TRUE, row.names=NULL) # coordinates of ev
 ######################################################################################################################
 
 for(species in all_assemblies){   ### if we want to loop over all assemblies, this line and line starting "all_assemblies<-c" should be uncommented, as well as final "}" if doing a single assembly, comment these lines instead
+  
   ###########################################################
   ## Set up paths to input files
   ###########################################################
-  setwd(main_dir)
-  path_ugeno<-paste0(main_dir, species, "_outfiles", "/", species,".ugeno")
-  path_ustr<-paste0(main_dir, species, "_outfiles", "/", species,".ustr")
+  setwd(paste0(main_dir, species)) # move into directory for assembly
   
-  # snmf requires the geno file to have the extension .geno - the geno file of unlinked snps has ugeno
-  #   as above, copy the geno and make one with the extension .u.geno
-  path_geno<-gsub(".ugeno", ".u.geno", path_ugeno)  # Use a regular expression substitution to generate the new file name
-  file.copy(path_ugeno, path_geno) # do the copying with the new name
+  # read in genetic data from ipyrad out to get individual names in order
+  path_vcf<-paste0(ipyrad_out_dir, species, "_outfiles/", species,".vcf")
+  gendata_all<-read.vcfR(path_vcf) # read in all of the genetic data
+  gendata<-vcfR2genlight(gendata_all) # make the genetic data a biallelic matrix of alleles in genlight format
+  ind_names<-gendata@ind.names ## get the individual names in the order that they show up in the various files - this is important farther down for getting coordinates into the right order for plotting
+
   
+  # read in the cross validation summary
+  rawcv <- readLines("CV_summ.txt")
   
-  # Run sNMF using 1 to 10 ancestral populations and evaluate the fit of different k values to the data using cross entropy criterion
-  # before running snmf, check if it's already been run
-  if(dir.exists(gsub("geno", "snmf", basename(path_geno)))){
-    obj.at<-load.snmfProject(gsub("geno", "snmfProject", basename(path_geno))) # if it has, just load up the results
-  }else{ # otherwise, run sNMF
-    obj.at <- snmf(input.file = path_geno,  # input file is the .geno format file. We set up the path to this above
-                   K = 1:10, # we will test for k=1 through 10
-                   ploidy = 2, 
-                   entropy = T, # use the cross entropy criterion for assessing the best k value
-                   repetitions = 10, # Run 10 independent replicate analyses
-                   CPU = 1, 
-                   project = "new", tolerance = 0.00001, iterations = 500)
-  }
+  # Extract K values and corresponding error values
+  k_values <- as.numeric(str_extract(rawcv, "(?<=K=)\\d+"))
+  errors <- as.numeric(str_extract(rawcv, "(?<=: )\\d+\\.\\d+"))
   
-  setwd(sNMF_out_dir)
-  
-  # make pdf of cross-entropy plot
+  cv <- data.frame(K = k_values, Error = errors)
+
+  # plot out cross validation
   plot(obj.at, col = "lightblue", cex = 1.2, pch = 19)
   
-  # look at outstats
-  outstats <- summary(obj.at)
-  outstats # take a look
   
-  # Plot k=2 through k=6 for all
-  k_plot<-2:9
+  # list out the Q files
+  qfiles <- normalizePath(list.files(pattern = ".Q$", full.names = TRUE))
   
   
-  ## This code block reads in the ustr file to get individual names in the order they show up
-  ##    in data files, since geno files don't have ind names in them - this is not a great way
-  ##    to do it, and is a holdover from when I used the ustr for other stuff that I've removed from this script,
-  ##    but it works, so it stays - if I was building this ground-up again, I'd do this differently
-  ##
-  geno_txt<-readLines(path_ugeno)
-  nums_snps<-length(geno_txt)
-  num_ind<-length(strsplit(geno_txt[[1]], "")[[1]])
-  ## quirk of read.structure function is that it requires the strucure file to have the file extension “.stru” - do some copying to make a new file with this extension
-  path_stru<-gsub(".ustr", ".stru", path_ustr)  # Use a regular expression substitution to generate the new file name
-  file.copy(path_ustr, path_stru) # make a copy of the file with the new name
-  # Now we can read in this file
-  ustr<-read.structure(path_stru, n.ind=num_ind, n.loc=nums_snps, onerowperind = FALSE, col.lab=1, col.pop=0, NA.char="-9", pop=NULL, ask=FALSE, quiet=FALSE)
-  ind_names<-rownames(ustr@tab) ## get the individual names in the order that they show up in the various files - this is important farther down for getting coordinates into the right order for plotting
+
+  # Plot k 2 through 10
+  k_plot<-2:10
   
-  
+
   
   ### For  down below, get the geographic coordinates sorted out
   ## make sure there aren't any individuals that don't have coordinates
   ind_names[which(!ind_names %in% coords[,"gen_dat_num"])]
-  # match up the coordinates to the order of the individuals from snmf
+  # match up the coordinates to the order of the individuals from admixture
   match_coords<-match(ind_names, coords[,"gen_dat_num"])
-  snmf_coords<-coords[match_coords,]
+  admix_coords<-coords[match_coords,]
   
-  
-  pdf(file=paste0(species,"_SNMF_plots", ".pdf"), width=6, height=5)
+  setwd(main_dir)
+  pdf(file=paste0(species,"_Admixture_plots", ".pdf"), width=6, height=5)
   # put in the cross-entropy plot at the start
-  plot(obj.at, col = "lightblue", cex = 1.2, pch = 19)
+  plot(cv, col = "lightblue", cex = 1.2, pch = 19)
   #### use a loop to plot various different k values 
   for(i in k_plot){
-    # confirm cross entropy values for K are consist. across runs
-    ce <- cross.entropy(obj.at, K = i) 
-    ce # pretty similar
-    best.run <- which.min(ce) # find the run with the lowest cross validation error
     
-    ## Get the snmf Q matrix from the best run at the best k
-    qmatrix <- Q(obj.at, K = i, run = best.run)
-    admix<-as.data.frame(qmatrix)
-    
+    ## Get the Q matrix for this value of k
+    qfile <- grep(paste0("\\.", i, "\\.Q$"), qfiles, value = TRUE)
+    qmatrix <- as.data.frame(read.table(qfile))
+        
     # get the coordinate and admix data into a single dataframe
-    for_pies <- cbind(snmf_coords, admix)
+    for_pies <- cbind(admix_coords, qmatrix)
     
     
     # Create a small function to nudge overlapping coordinates
@@ -165,17 +137,17 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
     
     
     # Get the right number of colors
-    colors <- colors_6[1:ncol(admix)]
+    colors <- colors_6[1:ncol(qmatrix)]
     
     
     # plot it out
-    snmf_plot <- ggplot(to_map, aes(long, lat, group = group)) + # map out the US & Mexico
+    admix_plot <- ggplot(to_map, aes(long, lat, group = group)) + # map out the US & Mexico
       geom_polygon(data = to_map, fill = "grey90", color = "black", size = 0.2) + # make them polygons
       geom_scatterpie(data = for_pies, aes(x=Longitude, y=Latitude, group = gen_dat_num, r = 0.008), cols = grep("^V", colnames(for_pies), value = TRUE), size = 0.1) + # plot the pies - use grep to get the column names that start with V, these are the admix proportions
       scale_fill_manual(values = colors) +
       guides(fill="none") + # get rid of the legend for admixture
       theme_minimal() +
-      labs(title=paste0(species,"_SNMF_K",i), x ="Longitude", y = "Longitude") +
+      labs(title=paste0(species,"_Admixture_K",i), x ="Longitude", y = "Longitude") +
       coord_map("moll") # Mollweide projection
 
     
@@ -192,7 +164,7 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
              col = colors,
              xlab = NULL,
              ylab = "Ancestry proportions",
-             main = paste0(species," SNMF K ",i))
+             main = paste0(species," Admixture K ",i))
     axis(1, at = 1:length(bp$order),
          labels = ind_names[bp$order], las=2,
          cex.axis = 0.3)
@@ -200,7 +172,7 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
     par(old_par)
     
     
-    print(snmf_plot)
+    print(admix_plot)
     
   }
   dev.off()

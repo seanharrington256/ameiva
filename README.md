@@ -75,6 +75,94 @@ Directory `trees`
 
 
 
+
+
+<br>
+<br>
+
+## Admixture analysis using program Admixture
+
+Admixture binary from [here](https://dalexander.github.io/admixture/download.html)
+
+
+1. Convert files to plink format
+
+
+- All samples, except outgroup `ameiva_dn_c92_no_outgroup` assembly:
+
+```
+cd /project/inbreh/ameiva/ipyrad_out/ameiva_dn_c92_no_outgroup_outfiles
+module load miniconda3/24.3.0
+conda activate plink
+
+# First make a thinned vcf file with only independent SNPs
+vcftools --vcf ameiva_dn_c92_no_outgroup.vcf --thin 150 --recode --out ameiva_dn_c92_no_out_thin
+mv ameiva_dn_c92_no_out_thin.recode.vcf ameiva_dn_c92_no_out_thin.vcf
+
+# then make plink file
+plink --vcf ameiva_dn_c92_no_out_thin.vcf --recode12 --out ameiva_dn_c92_no_out_thin --allow-extra-chr --double-id
+```
+
+
+
+- *A. exsul* only `ameiva_dn_c92_exsul` assembly:
+
+```
+cd /project/inbreh/ameiva/ipyrad_out/ameiva_dn_c92_exsul_outfiles
+module load miniconda3/24.3.0
+conda activate plink
+
+# First make a thinned vcf file with only independent SNPs
+vcftools --vcf ameiva_dn_c92_exsul.vcf --thin 150 --recode --out ameiva_dn_c92_exsul_thinned
+mv ameiva_dn_c92_exsul_thinned.recode.vcf ameiva_dn_c92_exsul_thinned.vcf
+
+# then make plink file
+plink --vcf ameiva_dn_c92_exsul_thinned.vcf --recode12 --out ameiva_dn_c92_exsul_thin --allow-extra-chr --double-id
+```
+
+2. Run Admixture. Just running this from an interactive session because it's fast and easy:
+
+
+- Run on all samples, except outgroup `ameiva_dn_c92_no_outgroup` assembly:
+
+
+```
+salloc -A inbreh -t 0-03:00 --mem=8G --cpus-per-task=8
+
+cd /project/inbreh/ameiva/admix_out/ameiva_dn_c92_no_outgroup
+INFILE="/project/inbreh/ameiva/ipyrad_out/ameiva_dn_c92_no_outgroup_outfiles/ameiva_dn_c92_no_out_thin.ped"
+BNAME=$(basename "$INFILE" | cut -d "." -f 1)
+
+for K in 1 2 3 4 5 6 7 8 9 10; \
+	do admixture --cv $INFILE $K -j8 | tee ${BNAME}_log${K}.out; done
+	
+# Take a look at cross validationL
+grep -h CV *log*.out
+grep -h CV *log*.out > CV_summ.txt  # write to a file
+```
+
+
+
+
+- Run on *A. exsul* only `ameiva_dn_c92_exsul` assembly:
+
+```
+salloc -A inbreh -t 0-03:00 --mem=8G --cpus-per-task=8
+
+cd /project/inbreh/ameiva/admix_out/ameiva_dn_c92_exsul
+INFILE="/project/inbreh/ameiva/ipyrad_out/ameiva_dn_c92_exsul_outfiles/ameiva_dn_c92_exsul_thin.ped"
+BNAME=$(basename "$INFILE" | cut -d "." -f 1)
+
+for K in 1 2 3 4 5 6 7 8 9 10; \
+	do admixture --cv $INFILE $K -j8 | tee ${BNAME}_log${K}.out; done
+	
+# Take a look at cross validationL
+grep -h CV *log*.out
+grep -h CV *log*.out > CV_summ.txt  # write to a file
+```
+
+
+
 <br>
 <br>
 
@@ -85,14 +173,7 @@ Directory `R_popstruct`
 
 1. `R_popstruct.R` runs sNMF clustering.
 
-
-
-<br>
-<br>
-
-## Admixture analysis using program Admixture
-
-
+2. `Plot_admixture.R` plots results from Admixture. 
 
 
 
