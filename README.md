@@ -47,7 +47,7 @@ ipyrad -p params-ameiva_dn_c92_nolowcov.txt -b ameiva_dn_c92_no_outgroup ../../m
 
 - `ameiva_dn_7_c92_no_outgroup.slurm` runs step 7 on the new branch with no Cuba outgroup.
 
-4. Branch the assembly to get only the *A. exsul* clade
+6. Branch the assembly to get only the *A. exsul* clade
 
 
 ```
@@ -60,6 +60,22 @@ ipyrad -p params-ameiva_dn_c92_no_outgroup.txt -b ameiva_dn_c92_exsul ../../meta
 ```
 
 - `ameiva_dn_7_c92_exsul.slurm` runs step 7 on the new branch with *A. exsul* clade only.
+
+
+7. Branch one more time to actually get only the *A. exsul* clade, previous branch accidentally included *wetmorei*.
+
+```
+# Load miniconda and the ipyrad environment
+module load miniconda3/24.3.0
+conda activate ipyrad
+
+# branch the assembly
+ipyrad -p params-ameiva_dn_c92_exsul.txt -b ameiva_dn_c92_exsulONLY ../../metadata/ameiva_names_exsulONLY.txt
+```
+
+- `ameiva_dn_7_c92_exsulONLY.slurm` runs step 7 on the new branch with *A. exsul* clade only.
+
+
 
 <br>
 <br>

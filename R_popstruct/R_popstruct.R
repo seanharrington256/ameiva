@@ -35,8 +35,9 @@ if(!dir.exists(sNMF_out_dir)){ # check if the directory  exists and then only cr
 ##    used multiple assemblies
 all_assemblies<-c(
   # "ameiva_dn_c92_nolowcov"
-  "ameiva_dn_c92_no_outgroup",
-  "ameiva_dn_c92_exsul"
+  # "ameiva_dn_c92_no_outgroup",
+  # "ameiva_dn_c92_exsul",
+  "ameiva_dn_c92_exsulONLY"
 )
 
 

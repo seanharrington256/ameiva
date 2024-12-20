@@ -15,6 +15,7 @@ library(scatterpie)
 library(dplyr)
 library(vcfR)
 library(stringr)
+library(tidyr)
 
 
 ## Set up an object to contain the path to the main directory with the data and then set that as the working directory
@@ -31,8 +32,9 @@ ipyrad_out_dir <- "/project/inbreh/ameiva/ipyrad_out/"
 ##    looped from older versions of this script for other assemblies that 
 ##    used multiple assemblies
 all_assemblies<-c(
-  "ameiva_dn_c92_no_outgroup",
-  "ameiva_dn_c92_exsul"
+  # "ameiva_dn_c92_no_outgroup",
+  # "ameiva_dn_c92_exsul",
+  "ameiva_dn_c92_exsulONLY"
 )
 
 
@@ -86,7 +88,7 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
   cv <- data.frame(K = k_values, Error = errors)
 
   # plot out cross validation
-  plot(obj.at, col = "lightblue", cex = 1.2, pch = 19)
+  plot(cv, col = "lightblue", cex = 1.2, pch = 19)
   
   
   # list out the Q files
@@ -157,20 +159,36 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
     # Increase the bottom margin
     par(mar = c(8, 4, 4, 2))  # c(bottom, left, top, right)
     
-    
+
     # Seems might have to plot barchart here:
-    bp <- barchart(obj.at, K = i, run = best.run,
-             border = "black", space = 0,
-             col = colors,
-             xlab = NULL,
-             ylab = "Ancestry proportions",
-             main = paste0(species," Admixture K ",i))
-    axis(1, at = 1:length(bp$order),
-         labels = ind_names[bp$order], las=2,
-         cex.axis = 0.3)
+    
+    # Convert data to long format for ggplot
+    for_pies$individual <- ind_names
+    
+    long_data <- for_pies %>%
+      pivot_longer(cols = starts_with("V"), 
+                   names_to = "Cluster", 
+                   values_to = "Proportion")
+    
+    # Plot the barchart
+    barchart_plot <- ggplot(long_data, aes(x = individual, 
+                                           y = Proportion, 
+                                           fill = Cluster)) +
+      geom_bar(stat = "identity", position = "stack", color = "black") +
+      scale_fill_manual(values = colors) +
+      labs(title = paste0(species, " Admixture K ", i),
+           x = "Individuals", 
+           y = "Ancestry proportions") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6),
+            legend.position = "none") # Remove legend
+    
+    
+    # Display the plot
+    print(barchart_plot)
+    
     
     par(old_par)
-    
     
     print(admix_plot)
     
