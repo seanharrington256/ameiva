@@ -89,7 +89,7 @@ Directory `trees`
 
 2. `svdq_as_tips.slurm` runs SVDQuartets with all individuals as tips on the same `ameiva_dn_c92_nolowcov_outfiles` dataset.
 
-
+3. `plot_phylo.R` plots out trees, including trees with support values and trees plotted to maps and a tree for exsul showing the tree plotted to map with sNMF pie charts overlaid.
 
 
 
@@ -191,6 +191,7 @@ Directory `R_popstruct`
 
 2. `Plot_admixture.R` plots results from Admixture. 
 
+3. `R_popstruct_LINKED.R` runs sNMF clustering, but using linked SNPs instead of the standard unlinked only, just as a test. Doesn't look like it makes an appreciable difference.
 
 
 
