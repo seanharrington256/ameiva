@@ -15,16 +15,17 @@ library(rworldmap)
 library(ggplot2)
 library(scatterpie)
 library(dplyr)
+library(vcfR)
 
 ## Set up an object to contain the path to the main directory with the data and then set that as the working directory
 main_dir<-"/project/inbreh/ameiva/ipyrad_out/"
 setwd(main_dir)
 
- # path to coordinates file
+# path to coordinates file
 coords_file <- "/project/inbreh/ameiva/metadata/coords_spec_info.csv"
 
 ## Set up an output directory
-sNMF_out_dir<-"/project/inbreh/ameiva/popstr_out"  # specify a full path to the directory
+sNMF_out_dir<-"/project/inbreh/ameiva/popstr_outLINKED"  # specify a full path to the directory
 if(!dir.exists(sNMF_out_dir)){ # check if the directory  exists and then only create it if it does not
   dir.create(sNMF_out_dir)
 }
@@ -33,7 +34,7 @@ if(!dir.exists(sNMF_out_dir)){ # check if the directory  exists and then only cr
 ## Specify all of the assemblies that we want to run sNMF on - 
 ##    looped from older versions of this script for other assemblies that 
 ##    used multiple assemblies
-all_assemblies<-c(
+all_assemblies <- c(
   # "ameiva_dn_c92_nolowcov"
   # "ameiva_dn_c92_no_outgroup",
   # "ameiva_dn_c92_exsul",
@@ -71,19 +72,17 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
   ## Set up paths to input files
   ###########################################################
   setwd(main_dir)
-  path_ugeno<-paste0(main_dir, species, "_outfiles", "/", species,".ugeno")
-  path_ustr<-paste0(main_dir, species, "_outfiles", "/", species,".ustr")
+  path_geno_pre <- paste0(main_dir, species, "_outfiles", "/", species,".geno")
+  path_vcf <- paste0(main_dir, species, "_outfiles", "/", species, ".vcf")
+  path_geno <- gsub(".geno$", "LINKED.geno", path_geno_pre)  # #make a renamed copy of the geno that includes LINKED so that the output will have this and not overwrite everything else
+  file.copy(path_geno_pre, path_geno) # do the copying with the new name
   
-  # snmf requires the geno file to have the extension .geno - the geno file of unlinked snps has ugeno
-  #   as above, copy the geno and make one with the extension .u.geno
-  path_geno<-gsub(".ugeno", ".u.geno", path_ugeno)  # Use a regular expression substitution to generate the new file name
-  file.copy(path_ugeno, path_geno) # do the copying with the new name
   
   
   # Run sNMF using 1 to 10 ancestral populations and evaluate the fit of different k values to the data using cross entropy criterion
   # before running snmf, check if it's already been run
   if(dir.exists(gsub("geno$", "snmf", path_geno))){
-    obj.at<-load.snmfProject(gsub("geno$", "snmfProject", path_geno)) # if it has, just load up the results
+    obj.at <- load.snmfProject(gsub("geno$", "snmfProject", path_geno)) # if it has, just load up the results
   }else{ # otherwise, run sNMF
     obj.at <- snmf(input.file = path_geno,  # input file is the .geno format file. We set up the path to this above
                    K = 1:10, # we will test for k=1 through 10
@@ -106,21 +105,10 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
   # Plot k=2 through k=6 for all
   k_plot<-2:9
   
-  
-  ## This code block reads in the ustr file to get individual names in the order they show up
-  ##    in data files, since geno files don't have ind names in them - this is not a great way
-  ##    to do it, and is a holdover from when I used the ustr for other stuff that I've removed from this script,
-  ##    but it works, so it stays - if I was building this ground-up again, I'd do this differently
-  ##
-  geno_txt<-readLines(path_ugeno)
-  nums_snps<-length(geno_txt)
-  num_ind<-length(strsplit(geno_txt[[1]], "")[[1]])
-  ## quirk of read.structure function is that it requires the strucure file to have the file extension “.stru” - do some copying to make a new file with this extension
-  path_stru<-gsub(".ustr", ".stru", path_ustr)  # Use a regular expression substitution to generate the new file name
-  file.copy(path_ustr, path_stru) # make a copy of the file with the new name
-  # Now we can read in this file
-  ustr<-read.structure(path_stru, n.ind=num_ind, n.loc=nums_snps, onerowperind = FALSE, col.lab=1, col.pop=0, NA.char="-9", pop=NULL, ask=FALSE, quiet=FALSE)
-  ind_names<-rownames(ustr@tab) ## get the individual names in the order that they show up in the various files - this is important farther down for getting coordinates into the right order for plotting
+  # read in vcf file to get individual names
+  gendata_all <- read.vcfR(path_vcf) # read in all of the genetic data from the vcf file
+  gendata <- vcfR2genind(gendata_all) # convert to genind format
+  ind_names <- rownames(gendata@tab) ## get the individual names in the order that they show up in the various files - this is important farther down for getting coordinates into the right order for plotting
   
   
   
@@ -132,7 +120,7 @@ for(species in all_assemblies){   ### if we want to loop over all assemblies, th
   snmf_coords<-coords[match_coords,]
   
   
-  pdf(file=paste0(species,"_SNMF_plots", ".pdf"), width=6, height=5)
+  pdf(file=paste0(species,"LINKED_SNMF_plots", ".pdf"), width=6, height=5)
   # put in the cross-entropy plot at the start
   plot(obj.at, col = "lightblue", cex = 1.2, pch = 19)
   #### use a loop to plot various different k values 
